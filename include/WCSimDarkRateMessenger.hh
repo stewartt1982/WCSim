@@ -19,12 +19,13 @@ public:
   WCSimDarkRateMessenger(WCSimWCDigitizer*);
   WCSimDarkRateMessenger(WCSimWCAddDarkNoise*);
 
-
   ~WCSimDarkRateMessenger();
 
   void SetNewValue(G4UIcommand* command, G4String newValue);
 
 private:
+  void Initalise();
+
   WCSimWCDigitizer* WCSimDigitize;
   WCSimWCAddDarkNoise* WCSimAddDarkNoise;
 

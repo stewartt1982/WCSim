@@ -47,13 +47,37 @@ WCSimWCTriggerBase::WCSimWCTriggerBase(G4String name,
     DAQMessenger->TellMeAboutTheTrigger(this);
     DAQMessenger->TellTrigger();
   }
+
+  digitizeCalled = false;
+}
+  
+WCSimWCTriggerBase::~WCSimWCTriggerBase(){
 }
 
-WCSimWCTriggerBase::~WCSimWCTriggerBase(){
+void WCSimWCTriggerBase::AdjustNHitsThresholdForNoise()
+{
+  int npmts = this->myDetector->GetTotalNumPmts();
+  double trigger_window_seconds = nhitsWindow * 1E-9;
+  double dark_rate_Hz = PMTDarkRate * 1000;
+  double average_occupancy = dark_rate_Hz * trigger_window_seconds * npmts;
+  
+  G4cout << "Average number of PMTs in detector active in a " << nhitsWindow
+	 << "ns window with a dark noise rate of " << PMTDarkRate
+	 << "kHz is " << average_occupancy
+	 << " (" << npmts << " total PMTs)"
+	 << G4endl
+	 << "Updating the NHits threshold, from " << nhitsThreshold
+	 << " to " << nhitsThreshold + round(average_occupancy) << G4endl;
+  nhitsThreshold += round(average_occupancy);
 }
 
 void WCSimWCTriggerBase::Digitize()
 {
+  if(nhitsAdjustForNoise && !digitizeCalled) {
+    AdjustNHitsThresholdForNoise();
+    digitizeCalled = true;
+  }
+
   //Input is collection of all digitized hits that passed the threshold
   //Output is all digitized hits which pass the trigger
   
@@ -81,7 +105,8 @@ void WCSimWCTriggerBase::Digitize()
   StoreDigiCollection(DigitsCollection);
 }
 
-void WCSimWCTriggerBase::AlgNHits(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits, bool test) {
+void WCSimWCTriggerBase::AlgNHits(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits, bool test)
+{
 
   //if test is true, we run the algorithm with 1/2 the threshold, and kTriggerNHitsTest
   //for testing multiple trigger algorithms at once
@@ -180,21 +205,179 @@ void WCSimWCTriggerBase::AlgNHits(WCSimWCDigitsCollection* WCDCPMT, bool remove_
   
   //call FillDigitsCollection() if at least one trigger was issued
   G4cout << "Found " << ntrig << " NHit triggers" << G4endl;
-  if(ntrig)
-    FillDigitsCollection(WCDCPMT, remove_hits, this_triggerType);
+  FillDigitsCollection(WCDCPMT, remove_hits, this_triggerType);
+}
+
+void WCSimWCTriggerBase::AlgNHitsThenITC(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits)
+{
+
+  //Now we will try to find triggers
+  //loop over PMTs, and Digits in each PMT. 
+  // If nhits > Threshhold in a time window, then we have a trigger
+  // If this cut fails, attempt an ITC ratio trigger
+
+  int ntrig = 0;
+  int window_start_time = 0;
+  int window_end_time   = WCSimWCTriggerBase::LongTime - nhitsWindow;
+  int window_step_size  = 5; //step the search window along this amount if no trigger is found
+  float lasthit;
+  std::vector<int> digit_times;
+  std::vector<int> digit_times_itc_small, digit_times_itc_large;
+  bool first_loop = true;
+
+  G4cout << "WCSimWCTriggerBase::AlgNHits. Number of entries in input digit collection: " << WCDCPMT->entries() << G4endl;
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+  int temp_total_pe = 0;
+  for (G4int i = 0 ; i < WCDCPMT->entries() ; i++) {
+    temp_total_pe += (*WCDCPMT)[i]->GetTotalPe();
+  }
+  G4cout << "WCSimWCTriggerBase::AlgNHits. " << temp_total_pe << " total p.e. input" << G4endl;
+#endif
+
+  // the upper time limit is set to the final possible full trigger window
+  while(window_start_time <= window_end_time) {
+    int n_digits = 0;
+    int n_digits_itc_small = 0, n_digits_itc_large = 0;
+    float triggertime; //save each digit time, because the trigger time is the time of the first hit above threshold
+    bool triggerfound = false;
+    digit_times.clear();
+    
+    //Loop over each PMT & count NDigits in window [window_start_time, window_start_time + nhitsWindow]
+    //Also count in two extra windows for the ITC cut
+    // [window_start_time, window_start_time + itcSmallWindow]  
+    // [window_start_time - itcLargeWindowLow, window_start_time + itcLargeWindowHigh]  
+    for (G4int i = 0 ; i < WCDCPMT->entries() ; i++) {
+      //int tube=(*WCDCPMT)[i]->GetTubeID();
+      //Loop over each Digit in this PMT
+      for ( G4int ip = 0 ; ip < (*WCDCPMT)[i]->GetTotalPe() ; ip++) {
+	int digit_time = (*WCDCPMT)[i]->GetTime(ip);
+	//hit in trigger window?
+	if(digit_time >= window_start_time && digit_time <= (window_start_time + nhitsWindow)) {
+	  n_digits++;
+	  digit_times.push_back(digit_time);
+	}
+        //hit in the small ITC window?
+        if((digit_time >= window_start_time) && (digit_time <= (window_start_time + itcSmallWindow))) {
+          n_digits_itc_small++;
+          digit_times_itc_small.push_back(digit_time);
+        }
+        //hit in the large ITC window?
+        if((digit_time >= (window_start_time - itcLargeWindowLow)) && digit_time <= (window_start_time + itcLargeWindowHigh)) {
+          n_digits_itc_large++;
+          digit_times_itc_large.push_back(digit_time);
+        }
+	//G4cout << digit_time << G4endl;
+	//get the time of the last hit (to make the loop shorter)
+	if(first_loop && (digit_time > lasthit))
+	  lasthit = digit_time;
+      }//loop over Digits
+    }//loop over PMTs
+
+    //if over threshold, issue trigger
+    if(n_digits > nhitsThreshold) {
+      ntrig++;
+      //The trigger time is the time of the first hit above threshold
+      std::sort(digit_times.begin(), digit_times.end());
+      triggertime = digit_times[nhitsThreshold];
+      triggertime -= (int)triggertime % 5;
+      //save the trigger information
+      TriggerTimes.push_back(triggertime);
+      TriggerTypes.push_back(kTriggerNHits);
+      TriggerInfos.push_back(std::vector<Float_t>(1, n_digits));
+      triggerfound = true;
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+      G4cout << EnumAsString(kTriggerNHits) << " trigger passed with time " << triggertime << G4endl;
+#endif
+    }//NDigits trigger passed
+
+    //The simple NHits trigger hasn't been passed. See if the ITC ratio trigger can be passed
+    double itc_ratio = (double)n_digits_itc_small / (double)n_digits_itc_large;
+    if(!triggerfound && itc_ratio > itcRatioThreshold) {
+      ntrig++;
+      //The trigger time is the time of the first hit TEMPORARY
+      std::sort(digit_times.begin(), digit_times.end());
+      triggertime = digit_times[0];
+      triggertime -= (int)triggertime % 5;
+      std::vector<Float_t> triggerinfo;
+      triggerinfo.push_back(itc_ratio);
+      triggerinfo.push_back(n_digits_itc_small);
+      triggerinfo.push_back(n_digits_itc_large);
+      //save the trigger information
+      TriggerTimes.push_back(triggertime);
+      TriggerTypes.push_back(kTriggerITCRatio);
+      TriggerInfos.push_back(triggerinfo);
+      triggerfound = true;
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+      G4cout << EnumAsString(kTriggerITCRatio) << " trigger passed with time " << triggertime << G4endl;
+#endif
+    }//ITC trigger passed
+    
+
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+    if(n_digits)
+      G4cout << n_digits << " digits found in 200nsec trigger window ["
+	     << window_start_time << ", " << window_start_time + nhitsWindow
+	     << "]. Threshold is: " << nhitsThreshold << G4endl;
+#endif
+
+    //move onto the next go through the timing loop
+    if(triggerfound) {
+      window_start_time = triggertime + WCSimWCTriggerBase::eventgateup;
+    }//triggerfound
+    else {
+      window_start_time += window_step_size;
+    }
+
+    //shorten the loop using the time of the last hit
+    if(first_loop) {
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+      G4cout << "Last hit found to be at " << lasthit
+	     << ". Changing window_end_time from " << window_end_time
+	     << " to " << lasthit - (nhitsWindow - 10)
+	     << G4endl;
+#endif
+      window_end_time = lasthit - (nhitsWindow - 10);
+      first_loop = false;
+    }
+  }
+  
+  //call FillDigitsCollection() if at least one trigger was issued
+  G4cout << "Found " << ntrig << " NHitThenITC triggers" << G4endl;
+  FillDigitsCollection(WCDCPMT, remove_hits, kTriggerUndefined);
 }
 
 void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits, TriggerType_t save_triggerType)
 {
+
   G4String WCIDCollectionName = myDetector->GetIDCollectionName();
   G4float timingConstant = 0.0;
   WCSimPMTObject * PMT = myDetector->GetPMTPointer(WCIDCollectionName); //for hit time smearing
+
+
+  //saveFailuresMode = 0 - save only triggered events
+  //saveFailuresMode = 1 - save both triggered & not triggered events
+  //saveFailuresMode = 2 - save only not triggered events
+  if(TriggerTimes.size()) {
+    if(saveFailuresMode == 2)
+      return;
+  }
+  else {
+    if(saveFailuresMode == 0)
+      return;
+    TriggerTypes.push_back(kTriggerFailure);
+    TriggerTimes.push_back(saveFailuresTime);
+    TriggerInfos.push_back(std::vector<Float_t>(1, -1));
+    save_triggerType = kTriggerFailure;
+  }
+
+  //  WCSimPMTObject * PMT = myDetector->GetPMTPointer("glassFaceWCPMT"); //for hit time smearing
+  //>>>>>>> 588f6a1a57690c567128cc870173732325d6317d
 
   //Loop over trigger times
   for(unsigned int itrigger = 0; itrigger < TriggerTimes.size(); itrigger++) {
     TriggerType_t triggertype = TriggerTypes[itrigger];
     //check if we've already saved this trigger
-    if(triggertype != save_triggerType)
+    if(triggertype != save_triggerType && save_triggerType != kTriggerUndefined)
       continue;
     float         triggertime = TriggerTimes[itrigger];
     std::vector<Float_t> triggerinfo = TriggerInfos[itrigger];
@@ -267,4 +450,220 @@ void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, 
   }//loop over Triggers
   G4cout << "WCSimWCTriggerBase::FillDigitsCollection. Number of entries in output digit collection: " << DigitsCollection->entries() << G4endl;
 
+}
+
+
+void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits)
+{
+  std::cout<<"INside trigger\n";
+  // Get the info for pmt positions                                                                                                                                              
+  std::vector<WCSimPmtInfo*> *pmts = myDetector->Get_Pmts();
+
+  //Now we will try to find triggers
+  //loop over PMTs, and Digits in each PMT. 
+  // If nhits > Threshhold in a time window, then we have a trigger
+  // If this cut fails, attempt an ITC ratio trigger
+
+  int ntrig = 0;
+  int window_start_time = 0;
+  int window_end_time   = WCSimWCTriggerBase::LongTime - nhitsWindow;
+  int window_step_size  = 5; //step the search window along this amount if no trigger is found
+  float lasthit;
+  std::vector<int> digit_times;
+  //   std::vector<int> digit_times_vtx[100][100][100];
+  
+  //int digit_times_vtx[100][100][100][2000];
+  std::vector<int> digit_times_itc_small, digit_times_itc_large;
+  bool first_loop = true;
+
+  G4cout << "WCSimWCTriggerBase::AlgNHits. Number of entries in input digit collection: " << WCDCPMT->entries() << G4endl;
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+  int temp_total_pe = 0;
+  for (G4int i = 0 ; i < WCDCPMT->entries() ; i++) {
+    temp_total_pe += (*WCDCPMT)[i]->GetTotalPe();
+  }
+  G4cout << "WCSimWCTriggerBase::AlgNHits. " << temp_total_pe << " total p.e. input" << G4endl;
+#endif
+
+  //Lets generate vertices in the SK detector spaces at 2 meters.
+  //diameter of SuperK ID is 33.8 m 
+  //height of SuperK ID is 36.2 m
+  Float_t SuperK_d = 33.8;
+  Float_t SuperK_h = 36.2;
+  std::vector<Float_t> x,y,z; 
+  Float_t c_light = 299792458./1.333;
+  for(Int_t ii=-1.*SuperK_d/2.;ii<SuperK_d/2.;ii=ii+5) {
+    for(Int_t jj=-1.*SuperK_d/2.;jj<SuperK_d/2.;jj=jj+5) {
+      for(Int_t kk=-1.*SuperK_h/2.;kk<SuperK_h/2.;kk=kk+5) {
+	//check that vertex is in the Inner detector since these vertices are generated
+	//in a grid
+	if(sqrt(ii*ii+jj*jj) < SuperK_d/2.) {
+	  //good vertex
+	  x.push_back(ii);y.push_back(jj);z.push_back(kk);
+	  std::cout<<"vertex "<<ii<<" "<<jj<<" "<<kk<<"\n";
+	}
+      }
+    }
+  }
+  std::cout<<"size "<<x.size()<<" "<<y.size()<<" "<<z.size()<<"\n";
+  Float_t hit_pos[3];
+ 
+  //  Float_t c_time[13000][100][100][100];
+//   //the upper time limit is set to the final possible full trigger window
+  while(window_start_time <= window_end_time) {
+    int n_digits = 0;
+    int n_digits_vtx[100][100][100];
+    for(int ii=0;ii<100;ii++){
+      for(int jj=0;jj<100;jj++){
+	for(int kk=0;kk<100;kk++){
+	  n_digits_vtx[ii][jj][kk]=0;
+	  //  digit_times_vtx[ii][jj][kk].clear();
+	  //for(int tt=0;tt<2000;tt++) {
+	    //digit_times_vtx[ii][jj][kk][tt]=0;
+	  //}
+	}
+      }
+    }
+  
+    int n_digits_itc_small = 0, n_digits_itc_large = 0;
+    float triggertime; //save each digit time, because the trigger time is the time of the first hit above threshold
+    bool triggerfound = false;
+    digit_times.clear();
+    
+    //Loop over each PMT & count NDigits in window [window_start_time, window_start_time + nhitsWindow]
+    //Also count in two extra windows for the ITC cut
+    // [window_start_time, window_start_time + itcSmallWindow]  
+    // [window_start_time - itcLargeWindowLow, window_start_time + itcLargeWindowHigh]  
+    for (G4int i = 0 ; i < WCDCPMT->entries() ; i++) {
+      int tube=(*WCDCPMT)[i]->GetTubeID();
+      WCSimPmtInfo* pmtinfo = (WCSimPmtInfo*)pmts->at( tube - 1 );
+      hit_pos[0] = pmtinfo->Get_transx();
+      hit_pos[1] = pmtinfo->Get_transy();
+      hit_pos[2] = pmtinfo->Get_transz();
+      std::cout<<"hit_pos "<<hit_pos[0]<<"\n";
+//       //loop over vertices
+//       for(Int_t ii=0;ii<x.size();ii++) {
+// 	for(Int_t jj=0;jj<y.size();jj++) {
+// 	  for(Int_t kk=0;kk<z.size();kk++) {
+// 	    //distance from tube
+// 	    Float_t diff_x = hit_pos[0]-x.at(ii);
+// 	    Float_t diff_y = hit_pos[1]-y.at(jj);
+// 	    Float_t diff_z = hit_pos[2]-z.at(kk);
+// 	    Float_t dist_tube = sqrt(diff_x*diff_x+diff_y*diff_y+diff_z*diff_z);
+// 	    //time for light to travel this distance
+// 	    c_time[tube-1][ii][jj][kk] = dist_tube/c_light;
+// 	  }
+// 	}
+//       }
+
+
+      //Loop over each Digit in this PMT
+      for ( G4int ip = 0 ; ip < (*WCDCPMT)[i]->GetTotalPe() ; ip++) {
+	int digit_time = (*WCDCPMT)[i]->GetTime(ip);
+	//hit times for each vertex
+	//loop over vertices                                                                                                                                                
+	for(Int_t ii=0;ii<x.size();ii++) {
+	  for(Int_t jj=0;jj<y.size();jj++) {
+	    for(Int_t kk=0;kk<z.size();kk++) {
+	      //correct time for speed of light in water
+	      //hits in a 30ns time window
+	      Float_t diff_x = hit_pos[0]/100.-x.at(ii);
+	      Float_t diff_y = hit_pos[1]/100.-y.at(jj);
+	      Float_t diff_z = hit_pos[2]/100.-z.at(kk);
+	      std::cout<<tube<<" "<<hit_pos[2]<<" "<<z.at(kk)<<"\n";
+	      Float_t dist_tube = sqrt(diff_x*diff_x+diff_y*diff_y+diff_z*diff_z);
+	      //time for light to travel this distance                                                                                                                        
+	      Float_t c_time = dist_tube/c_light;
+	      if(digit_time - c_time >= window_start_time && digit_time - c_time <= (window_start_time + 30.)) {
+ 		n_digits_vtx[ii][jj][kk]++;
+// 		//		digit_times.push_back(digit_time);
+ 		//digit_times_vtx[ii][jj][kk].push_back(digit_time);
+	      }
+	    }
+	  }
+	}
+	//hit in trigger window?
+	if(digit_time >= window_start_time && digit_time <= (window_start_time + nhitsWindow)) {
+	  n_digits++;
+	  digit_times.push_back(digit_time);
+	}
+
+	//G4cout << digit_time << G4endl;
+	//get the time of the last hit (to make the loop shorter)
+	if(first_loop && (digit_time > lasthit))
+	  lasthit = digit_time;
+      }//loop over Digits
+      }//loop over PMTs
+
+    //if over threshold, issue trigger
+    if(n_digits > nhitsThreshold) {
+      ntrig++;
+      //The trigger time is the time of the first hit above threshold
+      std::sort(digit_times.begin(), digit_times.end());
+      triggertime = digit_times[nhitsThreshold];
+      triggertime -= (int)triggertime % 5;
+      //save the trigger information
+      TriggerTimes.push_back(triggertime);
+      TriggerTypes.push_back(kTriggerNHits);
+      TriggerInfos.push_back(std::vector<Float_t>(1, n_digits));
+      triggerfound = true;
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+      G4cout << EnumAsString(kTriggerNHits) << " trigger passed with time " << triggertime << G4endl;
+#endif
+    }//NDigits trigger passed
+    
+
+    //loop over sums of hits for each vertex.
+    //if any go above threshold then issue a trigger
+    for(Int_t ii=0;ii<x.size();ii++) {
+      for(Int_t jj=0;jj<y.size();jj++) {
+	for(Int_t kk=0;kk<z.size();kk++) {
+	  if(n_digits_vtx[ii][jj][kk] > nhitsThreshold && triggerfound != true) {
+	    ntrig++;
+	    // //The trigger time is the time of the first hit above threshold                                                                                     
+// 	    std::sort(digit_times_vtx[ii][jj][kk].begin(), digit_times_vtx[ii][jj][kk].end());
+// 	    triggertime = digit_times_vtx[ii][jj][kk][nhitsThreshold];
+// 	    triggertime -= (int)triggertime % 5;
+// 	    //save the trigger information                                                                                                                                               
+// 	    TriggerTimes.push_back(triggertime);
+// 	    TriggerTypes.push_back(kTriggerNHits);
+// 	    TriggerInfos.push_back(std::vector<Float_t>(1, n_digits));
+	    triggerfound = true;
+	    }
+	}
+      }
+    }
+    
+
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+    if(n_digits)
+      G4cout << n_digits << " digits found in 200nsec trigger window ["
+	     << window_start_time << ", " << window_start_time + nhitsWindow
+	     << "]. Threshold is: " << nhitsThreshold << G4endl;
+#endif
+
+    //move onto the next go through the timing loop
+    if(triggerfound) {
+      window_start_time = triggertime + WCSimWCTriggerBase::eventgateup;
+    }//triggerfound
+    else {
+      window_start_time += window_step_size;
+    }
+
+    //shorten the loop using the time of the last hit
+    if(first_loop) {
+#ifdef WCSIMWCTRIGGERBASE_VERBOSE
+      G4cout << "Last hit found to be at " << lasthit
+	     << ". Changing window_end_time from " << window_end_time
+	     << " to " << lasthit - (nhitsWindow - 10)
+	     << G4endl;
+#endif
+      window_end_time = lasthit - (nhitsWindow - 10);
+      first_loop = false;
+    }
+  }
+  
+  //call FillDigitsCollection() if at least one trigger was issued
+  G4cout << "Found " << ntrig << " NHitThenITC triggers" << G4endl;
+  FillDigitsCollection(WCDCPMT, remove_hits, kTriggerUndefined);
 }
