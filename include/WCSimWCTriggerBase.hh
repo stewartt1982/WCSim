@@ -5,6 +5,7 @@
 #include "WCSimWCDAQMessenger.hh"
 #include "WCSimDetectorConstruction.hh"
 #include "G4VDigitizerModule.hh"
+#include "G4ThreeVector.hh"
 #include "WCSimWCDigi.hh"
 #include "WCSimWCHit.hh"
 #include "globals.hh"
@@ -85,6 +86,11 @@ private:
   G4int    itcLargeWindowHigh;
   G4double itcRatioThreshold;
 
+  //maps for the Alfons vertex trigger
+  std::vector<std::vector<int> > nhitsVTXmap;
+  std::vector<int> nhitsmap;
+  std::vector<G4ThreeVector> vtxVector;
+  G4int windowVTX;
 
   //takes all trigger times, then loops over all Digits & fills the output DigitsCollection
   void FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits, TriggerType_t save_triggerType);
@@ -95,6 +101,14 @@ private:
   static const double LongTime; // ns
 
   bool   digitizeCalled;
+};
+
+template <class T1, class T2, class Pred = std::less<T2> >
+struct sort_pair_second {
+  bool operator()(const std::pair<T1,T2>&left, const std::pair<T1,T2>&right) {
+    Pred p;
+    return p(left.second, right.second);
+  }
 };
 
 #endif

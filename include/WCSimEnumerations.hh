@@ -9,6 +9,7 @@ typedef enum ETriggerType {
   kTriggerNHitsSKDETSIM,
   kTriggerNHitsTest,
   kTriggerITCRatio,
+  kTriggerSubNHits,
   kTriggerFailure
 } TriggerType_t;
 
@@ -30,6 +31,9 @@ public:
       break;
     case (kTriggerITCRatio) :
       return "ITCRatio";
+      break;
+    case (kTriggerSubNHits) :
+      return "SubNHits";
       break;
     case (kTriggerFailure) :
       return "No_trigger_passed";
