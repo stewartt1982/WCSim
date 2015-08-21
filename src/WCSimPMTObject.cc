@@ -858,8 +858,8 @@ G4double HPD20inchHQE::GetExposeHeight() {return .192*m;}
 G4double HPD20inchHQE::GetRadius() {return .254*m;}
 G4double HPD20inchHQE::GetPMTGlassThickness() {return 0.3*cm;}
 float HPD20inchHQE::HitTimeSmearing(float Q) {
-  G4float sig_param[4]={0.7816,0.1364,0.3635,11.00};
-  G4float lambda_param[2]={0.4081,0.1021};
+  G4float sig_param[4]={0.6718,0.1264,0.4450,11.87};
+  G4float lambda_param[2]={0.3255,0.1142};
 
   G4float sigma_lowcharge = sig_param[0]*(exp(-sig_param[1]*Q)+sig_param[2]);
 
@@ -1026,8 +1026,8 @@ G4double HPD12inchHQE::GetExposeHeight() {return 118.*mm;} //Assumed to be the s
 G4double HPD12inchHQE::GetRadius() {return 152.4*mm;} //12 inches
 G4double HPD12inchHQE::GetPMTGlassThickness() {return 0.3*cm;} 
 float HPD12inchHQE::HitTimeSmearing(float Q) {
-  G4float sig_param[4]={0.7816,0.1364,0.3635,11.00};
-  G4float lambda_param[2]={0.4081,0.1021};
+  G4float sig_param[4]={0.6718,0.1264,0.4450,11.87};
+  G4float lambda_param[2]={0.3255,0.1142};
 
   G4float sigma_lowcharge = sig_param[0]*(exp(-sig_param[1]*Q)+sig_param[2]);
 
@@ -1206,7 +1206,7 @@ G4double BoxandLine20inchHQE::GetPMTGlassThickness() {return 0.4*cm;}
 
 float BoxandLine20inchHQE::HitTimeSmearing(float Q) {
   G4float sig_param[4]={0.6314,0.06260,0.5711,23.96};
-  G4float lambda_param[2]={0.4094,0.06852};
+  G4float lambda_param[2]={0.4113,0.07827};
   G4float sigma_lowcharge = sig_param[0]*(exp(-sig_param[1]*Q)+sig_param[2]);
 
   G4float highcharge_param[2];
@@ -1222,7 +1222,6 @@ float BoxandLine20inchHQE::HitTimeSmearing(float Q) {
 
 G4float* BoxandLine20inchHQE::Getqpe()
 {
-  
   static G4float qpe0[501]= {
     // 1
     0.000000, 0.000000, 0.000000, 0.000000, 0.000000,
@@ -1344,13 +1343,16 @@ G4float* BoxandLine20inchHQE::GetQEWavelength(){
 }
 
 G4float* BoxandLine20inchHQE::GetQE(){
+  G4float correctionFactor = 1./0.73;//Correction factor added in July 2015 to scale the output of B&L PDs to 2.32 times the 20" PMTS based on Hamamatsu simulation. This was done in Pull Request #98 and will be removed once a more permanent solution is found.
   static G4float QE[20] =
-    { 0.00, .0008, .1255, .254962, .2930, .3127, .3130, .2994, .2791, .2491,
-      .2070,  .1758, .1384, .0779, .0473, .0288, .0149, .0062, .0002, .0001};  
+    { 0.00*correctionFactor, .0008*correctionFactor, .1255*correctionFactor, .254962*correctionFactor, .2930*correctionFactor, .3127*correctionFactor, .3130*correctionFactor, .2994*correctionFactor, .2791*correctionFactor, .2491*correctionFactor,
+      .2070*correctionFactor,  .1758*correctionFactor, .1384*correctionFactor, .0779*correctionFactor, .0473*correctionFactor, .0288*correctionFactor, .0149*correctionFactor, .0062*correctionFactor, .0002*correctionFactor, .0001*correctionFactor};  
+
   return QE;
 }
 G4float BoxandLine20inchHQE::GetmaxQE(){
-  const G4float maxQE = 0.315;
+  G4float correctionFactor = 1./0.73;//Correction factor added in July 2015 to scale the output of B&L PDs to 2.32 times the 20" PMTS based on Hamamatsu simulation. This was done in Pull Request #98 and will be removed once a more permanent solution is found.
+  const G4float maxQE = 0.315*correctionFactor;
   return maxQE;
 }
 G4float* BoxandLine20inchHQE::GetCollectionEfficiencyArray(){  
@@ -1376,7 +1378,7 @@ G4double BoxandLine12inchHQE::GetPMTGlassThickness() {return 0.4*cm;}
 
 float BoxandLine12inchHQE::HitTimeSmearing(float Q) {
   G4float sig_param[4]={0.6314,0.06260,0.5711,23.96};
-  G4float lambda_param[2]={0.4094,0.06852};
+  G4float lambda_param[2]={0.4113,0.07827};
 
   G4float highcharge_param[2];
   highcharge_param[0]=2*sig_param[0]*sig_param[1]*sig_param[3]*sqrt(sig_param[3])*exp(-sig_param[1]*sig_param[3]);
@@ -1514,13 +1516,16 @@ G4float* BoxandLine12inchHQE::GetQEWavelength(){
 }
 
 G4float* BoxandLine12inchHQE::GetQE(){
+  G4float correctionFactor = 1./0.73;//Correction factor added in July 2015 to scale the output of B&L PDs to 2.32 times the 20" PMTS based on Hamamatsu simulation. This was done in Pull Request #98 and will be removed once a more permanent solution is found.
   static G4float QE[20] =
-    { 0.00, .0008, .1255, .254962, .2930, .3127, .3130, .2994, .2791, .2491,
-      .2070,  .1758, .1384, .0779, .0473, .0288, .0149, .0062, .0002, .0001};  
+    { 0.00*correctionFactor, .0008*correctionFactor, .1255*correctionFactor, .254962*correctionFactor, .2930*correctionFactor, .3127*correctionFactor, .3130*correctionFactor, .2994*correctionFactor, .2791*correctionFactor, .2491*correctionFactor,
+      .2070*correctionFactor,  .1758*correctionFactor, .1384*correctionFactor, .0779*correctionFactor, .0473*correctionFactor, .0288*correctionFactor, .0149*correctionFactor, .0062*correctionFactor, .0002*correctionFactor, .0001*correctionFactor};  
+
   return QE;
 }
 G4float BoxandLine12inchHQE::GetmaxQE(){
-  const G4float maxQE = 0.315;
+  G4float correctionFactor = 1./0.73;//Correction factor added in July 2015 to scale the output of B&L PDs to 2.32 times the 20" PMTS based on Hamamatsu simulation. This was done in Pull Request #98 and will be removed once a more permanent solution is found.
+  const G4float maxQE = 0.315*correctionFactor;
   return maxQE;
 }
 G4float* BoxandLine12inchHQE::GetCollectionEfficiencyArray(){  

@@ -8,7 +8,6 @@
 #include "WCSimWCDigitizerSK.hh"
 #include "WCSimWCTriggerNHits.hh"
 #include "WCSimWCTriggerNHits2.hh"
-#include "WCSimWCTriggerNHitsThenITC.hh"
 #include "WCSimWCTriggerNHitsThenSubNHits.hh"
 #include "WCSimWCAddDarkNoise.hh"
 #include "WCSimWCPMT.hh"
@@ -58,7 +57,7 @@ WCSimEventAction::WCSimEventAction(WCSimRunAction* myRun,
 {
   //Get the DAQ options to know which class to construct
   DAQMessenger->TellMeAboutTheEventAction(this);
-  DAQMessenger->TellEventAction();
+  DAQMessenger->SetEventActionOptions();
 
   G4DigiManager* DMman = G4DigiManager::GetDMpointer();
   WCSimWCPMT* WCDMPMT = new WCSimWCPMT( "WCReadoutPMT", myDetector);
@@ -85,10 +84,6 @@ WCSimEventAction::WCSimEventAction(WCSimRunAction* myRun,
     }
     else if(TriggerChoice == "NHits2") {
       WCSimWCTriggerNHits2* WCTM = new WCSimWCTriggerNHits2("WCReadout", detectorConstructor, DAQMessenger);
-      DMman->AddNewModule(WCTM);
-    }
-    else if(TriggerChoice == "NHitsThenITC") {
-      WCSimWCTriggerNHitsThenITC* WCTM = new WCSimWCTriggerNHitsThenITC("WCReadout", detectorConstructor, DAQMessenger);
       DMman->AddNewModule(WCTM);
     }
     else if(TriggerChoice == "NHitsThenSubNHits") {
@@ -189,8 +184,9 @@ void WCSimEventAction::EndOfEventAction(const G4Event* evt)
     WCSimWCTriggerBase* WCTM =
       (WCSimWCTriggerBase*)DMman->FindDigitizerModule("WCReadout");
 
+    // this is now done internally in Digitize()
     //clear old info inside the digitizer
-    WCTM->ReInitialize();
+    //WCTM->ReInitialize();
 
     // Figure out what size PMTs we are using in the WC detector.
     G4float PMTSize = detectorConstructor->GetPMTSize();
@@ -210,8 +206,9 @@ void WCSimEventAction::EndOfEventAction(const G4Event* evt)
     WCSimWCAddDarkNoise* WCDNM =
       (WCSimWCAddDarkNoise*)DMman->FindDigitizerModule("WCDarkNoise");
     
+    // this is now done internally in AddDarkNoise()
     //clear old info inside the darknoise routine
-    WCDNM->ReInitialize();  
+    //WCDNM->ReInitialize();  
 
     //Add the dark noise
     WCDNM->AddDarkNoise();
@@ -223,8 +220,9 @@ void WCSimEventAction::EndOfEventAction(const G4Event* evt)
     WCSimWCDigitizerBase* WCDM =
       (WCSimWCDigitizerBase*)DMman->FindDigitizerModule("WCReadoutDigits");
 
+    // this is now done internally in Digitize()
     //clear old info inside the digitizer
-    WCDM->ReInitialize();
+    //WCDM->ReInitialize();
 
     //Digitize the hits
     WCDM->Digitize();
@@ -236,8 +234,12 @@ void WCSimEventAction::EndOfEventAction(const G4Event* evt)
     WCSimWCTriggerBase* WCTM =
       (WCSimWCTriggerBase*)DMman->FindDigitizerModule("WCReadout");
   
-    //clear old info inside the digitizer
-    WCTM->ReInitialize();
+    // this is now done internally in Digitize()
+    //clear old info inside the trigger
+    //WCTM->ReInitialize();
+
+    //tell it the dark noise rate (for calculating the average dark occupancy -> can adjust the NHits threshold)
+    WCTM->SetDarkRate(WCDNM->GetDarkRate());
 
     //tell it the dark noise rate (for calculating the average dark occupancy -> can adjust the NHits threshold)
     WCTM->SetDarkRate(WCDNM->GetDarkRate());

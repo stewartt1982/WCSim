@@ -8,9 +8,8 @@ typedef enum ETriggerType {
   kTriggerNHits,
   kTriggerNHitsSKDETSIM,
   kTriggerNHitsTest,
-  kTriggerITCRatio,
   kTriggerSubNHits,
-  kTriggerFailure
+  kTriggerFailure // this should always be the last entry (for looping)
 } TriggerType_t;
 
 class WCSimEnumerations
@@ -28,9 +27,6 @@ public:
       break;
     case (kTriggerNHitsTest) :
       return "NHits_TEST";
-      break;
-    case (kTriggerITCRatio) :
-      return "ITCRatio";
       break;
     case (kTriggerSubNHits) :
       return "SubNHits";

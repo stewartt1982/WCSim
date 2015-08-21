@@ -22,9 +22,9 @@ public:
 
   void SetNewValue(G4UIcommand* command, G4String newValue);
 
-  void TellEventAction();
-  void TellTrigger();
-  void TellDigitizer();
+  void SetEventActionOptions();
+  void SetTriggerOptions();
+  void SetDigitizerOptions();
 
   void TellMeAboutTheDigitizer  (WCSimWCDigitizerBase* digitizer)   { WCSimDigitize = digitizer; }
   void TellMeAboutTheTrigger    (WCSimWCTriggerBase*   trigger)     { WCSimTrigger  = trigger; }
@@ -54,16 +54,6 @@ private:
   G4int                 StoreNHitsWindow;
   G4UIcmdWithABool*     NHitsTriggerAdjustForNoise;
   G4bool                StoreNHitsAdjustForNoise;
-
-  G4UIdirectory*        ITCRatioTriggerDir;
-  G4UIcmdWithADouble*   ITCRatioTriggerThreshold;
-  G4double              StoreITCRatioTriggerThreshold;
-  G4UIcmdWithAnInteger* ITCRatioTriggerSmallWindow;
-  G4int                 StoreITCRatioTriggerSmallWindow;
-  G4UIcmdWithAnInteger* ITCRatioTriggerLargeWindowLow;
-  G4int                 StoreITCRatioTriggerLargeWindowLow;
-  G4UIcmdWithAnInteger* ITCRatioTriggerLargeWindowHigh;
-  G4int                 StoreITCRatioTriggerLargeWindowHigh;
 };
 
 #endif
