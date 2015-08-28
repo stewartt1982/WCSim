@@ -25,8 +25,8 @@
 #what trigger time to use for the failed events?
 /DAQ/TriggerSaveFailures/TriggerTime 100
 # control the NHits trigger threshold
-/DAQ/TriggerNHits/Threshold 12
+/DAQ/TriggerNHits/Threshold 13
 # control the NHits trigger window (ns)
-/DAQ/TriggerNHits/Window 200
+/DAQ/TriggerNHits/Window 20
 #automatically adjust the NHits threshold depending on the average noise occupancy during the trigger window
-/DAQ/TriggerNHits/AdjustForNoise false
+/DAQ/TriggerNHits/AdjustForNoise true 

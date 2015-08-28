@@ -217,7 +217,7 @@ void sample_readfile(char *filename=NULL, bool verbose=false)
 
     // Get the number of digitized hits
     // Loop over sub events
-   
+    std::cout<<"Number of PMTs "<<geo->GetWCNumPMT()<<"\n";
     if(verbose) cout << "DIGITIZED HITS:" << endl;
     for (int index = 0 ; index < wcsimrootsuperevent->GetNumberOfEvents(); index++) 
     {
