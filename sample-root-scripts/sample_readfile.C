@@ -50,7 +50,7 @@ void sample_readfile(char *filename=NULL, bool verbose=false)
   TFile *file;
   // Open the file
   if (filename==NULL){
-    file = new TFile("../wcsim.root","read");
+    file = new TFile("../wcsim_HK0.14_8.4k_Thr5.root","read");
   }else{
     file = new TFile(filename,"read");
   }
@@ -184,6 +184,7 @@ void sample_readfile(char *filename=NULL, bool verbose=false)
     
     int totalPe = 0;
     // Loop through elements in the TClonesArray of WCSimRootCherenkovHits
+    WCSimRootPMT *pmt = new WCSimRootPMT();
     for (i=0; i< ncherenkovhits; i++)
     {
       TObject *Hit = (wcsimrootevent->GetCherenkovHits())->At(i);
@@ -193,7 +194,9 @@ void sample_readfile(char *filename=NULL, bool verbose=false)
       int tubeNumber     = wcsimrootcherenkovhit->GetTubeID();
       int timeArrayIndex = wcsimrootcherenkovhit->GetTotalPe(0);
       int peForTube      = wcsimrootcherenkovhit->GetTotalPe(1);
-      WCSimRootPMT pmt   = geo->GetPMT(tubeNumber-1);
+      *pmt   = geo->GetPMT(tubeNumber-1);
+      
+      
       totalPe += peForTube;
 
      

@@ -56,6 +56,7 @@ private:
   //lists (meaning vector/map) of information for each hit/digit created on the PMT
   std::map<int,float> pe;   
   std::map<int,float> time; 
+  std::map<int,float> geanttime;
   std::vector<G4float>  time_float; //same information as "time" but stored in a vector for quick time sorting
   // Stores the unique IDs of each photon making up a digit
   // There can be more than one digit in an event, hence the vector contains: <digi_number, unique_photon_id>
@@ -81,6 +82,7 @@ public:
   inline void AddGate(int g,float t) { Gates.insert(g); TriggerTimes.push_back(t);}
   inline void SetPe(G4int gate,  G4float Q)      {pe[gate]     = Q;};
   inline void SetTime(G4int gate, G4float T)    {time[gate]   = T;};
+  inline void SetGeantTime(G4int gate, G4float T) {geanttime[gate]=T;};
 
   // Add a digit number and unique photon number to fDigiComp
   inline void AddPhotonToDigiComposition(int digi_number, int photon_number){
@@ -99,6 +101,7 @@ public:
   inline G4int   GetTubeID() {return tubeID;};
   inline G4float GetPe(int gate)     {return pe[gate];};
   inline G4float GetTime(int gate)   {return time[gate];};
+  inline G4float GetGeantTime(int gate)   {return geanttime[gate];};
 
   inline std::vector< std::pair<int,int> > GetDigiCompositionInfo(){return fDigiComp;}
   std::vector<int> GetDigiCompositionInfo(int gate);

@@ -239,7 +239,7 @@ void WCSimPrimaryGeneratorAction::GeneratePrimaries(G4Event* anEvent)
 //     particleGun->SetParticleEnergy(E);
 //     particleGun->SetParticlePosition(vtx);
 //     particleGun->SetParticleMomentumDirection(dir);
-
+    targetpdg = 2212; //ie. proton
     SetVtx(vtx);
     SetBeamEnergy(E);
     SetBeamDir(dir);

@@ -19,8 +19,8 @@
 #/WCSim/WCgeom SuperK_20inchBandL_14perCent # Note: the actual coverage is 13.51%
 
 # Cylindrical detector with a height of 60 m and a diameter of 74 m
-/WCSim/WCgeom Cylinder_60x74_20inchBandL_14perCent # Note: the actual coverage is 13.51%
-#/WCSim/WCgeom Cylinder_60x74_20inchBandL_40perCent
+#/WCSim/WCgeom Cylinder_60x74_20inchBandL_14perCent # Note: the actual coverage is 13.51%
+/WCSim/WCgeom Cylinder_60x74_20inchBandL_40perCent
 
 # Generic cylindrical detector with a height of 100m and a 
 # diameter of 69m with 12" HPD and 14.59% photocoverage
@@ -65,7 +65,7 @@
 #/mygen/vecfile inputvectorfile
 #/mygen/vecfile h2o.2km.001-009x3_G4.kin
 #/mygen/vecfile mu+.out
-#/mygen/vecfile sample-root-scripts/HK_eminus_4MeV_random_4pi_000.kin
+/mygen/vecfile sample-root-scripts/HK_eminus_4MeV_random_4pi_000.kin
 
 #choose the Trigger & Digitizer type (and options)
 #this is now done in jobOptions.mac
@@ -91,22 +91,21 @@
 #/DarkRate/SetDarkMode 1 adds dark noise hits to a window of
 #width /DarkRate/SetDarkWindow [time in ns] around each hit.
 /DarkRate/SetDarkMode 0
-/DarkRate/SetDarkHigh 100000
+/DarkRate/SetDarkHigh 10000
 /DarkRate/SetDarkLow 0
 /DarkRate/SetDarkWindow 4000
 
-## Or you can use the G4 Particle Gun
-/mygen/generator normal
-/gun/particle e-
+# Or you can use the G4 Particle Gun
+#/mygen/generator normal
+#/gun/particle e-
 ##/gun/particle pi0
-/gun/energy 0 MeV
-/gun/direction 1 0 0 
-/gun/position 0 0 0  
+#/gun/energy 0 MeV
+#/gun/direction 1 0 0 
+#/gun/position 0 0 0  
 
 ## change the name of the output root file, default = wcsim.root
 
-/WCSimIO/RootFile wcsim.root
-
+/WCSimIO/RootFile wcsim_HK0.40_8.4k_Thr45.root
 /run/beamOn 1000
 
 #exit

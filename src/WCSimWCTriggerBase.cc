@@ -27,8 +27,8 @@
 #endif
 
 const double WCSimWCTriggerBase::offset = 950.0 ; // ns. apply offset to the digit time
-const double WCSimWCTriggerBase::eventgateup = 950.0 ; // ns. save eventgateup ns after the trigger time
-const double WCSimWCTriggerBase::eventgatedown = -400.0 ; // ns. save eventgateup ns before the trigger time
+const double WCSimWCTriggerBase::eventgateup = 950.0; // ns. save eventgateup ns after the trigger time
+const double WCSimWCTriggerBase::eventgatedown = -400.0 -200; // ns. save eventgateup ns before the trigger time
 const double WCSimWCTriggerBase::LongTime = 100000.0 ; // ns = 0.1ms. event time
 
 
@@ -172,7 +172,12 @@ void WCSimWCTriggerBase::AlgNHits(WCSimWCDigitsCollection* WCDCPMT, bool remove_
       triggertime -= (int)triggertime % 5;
       TriggerTimes.push_back(triggertime);
       TriggerTypes.push_back(this_triggerType);
-      TriggerInfos.push_back(std::vector<Float_t>(1, n_digits));
+      //      TriggerInfos.push_back(std::vector<Float_t>(1, n_digits));
+      //std::cout<<"TEST1 "<<TriggerInfos.at(0).size()<<"\n";
+      std::vector<Float_t> triggerinfo;
+      triggerinfo.push_back(triggertime);
+      TriggerInfos.push_back(triggerinfo);
+      //std::cout<<"TEST2 "<<TriggerInfos.at(0).size()<<"\n";
       triggerfound = true;
     }
 
@@ -209,7 +214,6 @@ void WCSimWCTriggerBase::AlgNHits(WCSimWCDigitsCollection* WCDCPMT, bool remove_
   // (what's saved depends on saveFailuresMode)
   FillDigitsCollection(WCDCPMT, remove_hits, this_triggerType);
 }
-
 void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, bool remove_hits, TriggerType_t save_triggerType)
 {
   //Adds the digits within the trigger window to the output WCSimWCDigitsCollection
@@ -238,6 +242,7 @@ void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, 
   //Get the PMT info for hit time smearing
   G4String WCIDCollectionName = myDetector->GetIDCollectionName();
   WCSimPMTObject * PMT = myDetector->GetPMTPointer(WCIDCollectionName);
+  
 
 
   //saveFailuresMode = 0 - save only triggered events
@@ -295,6 +300,7 @@ void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, 
 	  //first smear the charge & time
 	  float peSmeared = (*WCDCPMT)[i]->GetPe(ip);
 	  float Q = (peSmeared > 0.5) ? peSmeared : 0.5;
+	  
 	  G4double digihittime = -triggertime
 	    + WCSimWCTriggerBase::offset
 	    + digit_time
@@ -325,6 +331,7 @@ void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, 
 	    //Digi->AddParentID(parentID);
 	    Digi->AddGate  (itrigger,triggertime);
 	    Digi->SetTime  (itrigger,digihittime);
+	    Digi->SetGeantTime(itrigger,digit_time);
 	    Digi->SetPe    (itrigger,peSmeared);
 	    Digi->AddPe    (digihittime);
 	    Digi->AddDigiCompositionInfo(triggered_composition);
@@ -335,6 +342,7 @@ void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, 
 	    //(*DigitsCollection)[DigiHitMap[tube]-1]->AddParentID(parentID);
 	    (*DigitsCollection)[DigiHitMap[tube]-1]->AddGate(itrigger, triggertime);
 	    (*DigitsCollection)[DigiHitMap[tube]-1]->SetTime(itrigger, digihittime);
+	    (*DigitsCollection)[DigiHitMap[tube]-1]->SetGeantTime(itrigger,digit_time);
 	    (*DigitsCollection)[DigiHitMap[tube]-1]->SetPe  (itrigger, peSmeared);
 	    (*DigitsCollection)[DigiHitMap[tube]-1]->AddPe  (digihittime);
 	    (*DigitsCollection)[DigiHitMap[tube]-1]->AddDigiCompositionInfo(triggered_composition);
@@ -346,7 +354,6 @@ void WCSimWCTriggerBase::FillDigitsCollection(WCSimWCDigitsCollection* WCDCPMT, 
     }//loop over PMTs
   }//loop over Triggers
   G4cout << "WCSimWCTriggerBase::FillDigitsCollection. Number of entries in output digit collection: " << DigitsCollection->entries() << G4endl;
-
 }
 
 
@@ -886,7 +893,7 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
   nhitsVTXmap.clear();
   nhitsmap.clear();
   vtxVector.clear();
- 
+  digit_times.clear();
  
   // Get the info for pmt positions                                                                                                                                              
   std::vector<WCSimPmtInfo*> *pmts = myDetector->Get_Pmts();
@@ -901,7 +908,7 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
   int window_end_time   = WCSimWCTriggerBase::LongTime - nhitsWindow;
   int window_step_size  = 10; //step the search window along this amount if no trigger is found
   float lasthit;
-  std::vector<int> digit_times;
+  
   int time_bins = int(floor(WCSimWCTriggerBase::LongTime/window_step_size));
   
   G4cout << "WCSimWCTriggerBase::SubNHits. Number of entries in input digit collection: " << WCDCPMT->entries() << G4endl;
@@ -955,50 +962,56 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
 
   //loop over all hits to fill maps in 5ns time windows.
 
-   digit_times.clear();
+  //digit_times.clear();
    
    
   //speed of light in water
   double cLightH20 = CLHEP::c_light/1.3330; 
   
-    for (G4int i = 0 ; i < WCDCPMT->entries() ; i++) {
-      int tube=(*WCDCPMT)[i]->GetTubeID();
-      //get PMT position
-      WCSimPmtInfo* pmtinfo = (WCSimPmtInfo*)pmts->at( tube - 1 );
-      //hit positions in cm, conveet to mm as the CLHEP untis are in mm and ns
-      hit_pos[0] = 10.*pmtinfo->Get_transx();
-      hit_pos[1] = 10.*pmtinfo->Get_transy();
-      hit_pos[2] = 10.*pmtinfo->Get_transz();
-      
-      //loop over vertices, calculate distance from vertex to PMT.
-      for(int j=0;j<vtxVector.size();j++) {
-	Double_t diff_x = hit_pos[0]-vtxVector.at(j).x();                                                                                                                  
-	Double_t diff_y = hit_pos[1]-vtxVector.at(j).y();                                                                                                               
-	Double_t diff_z = hit_pos[2]-vtxVector.at(j).z();
-	//distance in mm
-	Double_t dist_tube = sqrt(diff_x*diff_x+diff_y*diff_y+diff_z*diff_z);
-	//time for light to travel this distance in ns
-	Double_t tofPMT = dist_tube/cLightH20;
-	//Loop over each Digit in this PMT                                                                                                         
-	for ( G4int ip = 0 ; ip < (*WCDCPMT)[i]->GetTotalPe() ; ip++) {
-	  int digit_time = (*WCDCPMT)[i]->GetTime(ip);
-	  if(digit_time >= WCSimWCTriggerBase::LongTime)
-	    continue;
-	  int digit_time_5ns = digit_time/window_step_size;
-	  //only fill the non-corrected map once, the first time
-	  if(j==0) {
-	    nhitsmap[int(floor(digit_time_5ns))]++;
-	  }
-	  //time is shifted by 400ns in order to ensure non-zero times (correcting for speed of light)
-	  if(int(floor(digit_time_5ns-tofPMT/window_step_size+600./window_step_size)) < 0)
-	    continue;
-	  nhitsVTXmap.at(j)[int(floor(digit_time_5ns-tofPMT/window_step_size + 600./window_step_size))]++;
-	  //Also add a hit to the next bin
-	  //nhitsVTXmap.at(j)[int(floor(digit_time_5ns-tofPMT/window_step_size + 600./window_step_size)) + 1]++;
-	 
-	}    
-      }
+  int tube;
+  WCSimPmtInfo* pmtinfo;
+  Double_t diff_x,diff_y,diff_z;
+  Double_t dist_tube;
+  Double_t tofPMT;
+  for (G4int i = 0 ; i < WCDCPMT->entries() ; i++) {
+    tube=(*WCDCPMT)[i]->GetTubeID();
+    //get PMT position
+    pmtinfo = (WCSimPmtInfo*)pmts->at( tube - 1 );
+    //hit positions in cm, conveet to mm as the CLHEP untis are in mm and ns
+    hit_pos[0] = 10.*pmtinfo->Get_transx();
+    hit_pos[1] = 10.*pmtinfo->Get_transy();
+    hit_pos[2] = 10.*pmtinfo->Get_transz();
+    
+    //loop over vertices, calculate distance from vertex to PMT.
+    for(int j=0;j<vtxVector.size();j++) {
+      diff_x = hit_pos[0]-vtxVector.at(j).x();                                                                                                                  
+      diff_y = hit_pos[1]-vtxVector.at(j).y();                                                                                                               
+      diff_z = hit_pos[2]-vtxVector.at(j).z();
+      //distance in mm
+      dist_tube = sqrt(diff_x*diff_x+diff_y*diff_y+diff_z*diff_z);
+      //time for light to travel this distance in ns
+      tofPMT = dist_tube/cLightH20;
+      //Loop over each Digit in this PMT                                                                                                         
+      for ( G4int ip = 0 ; ip < (*WCDCPMT)[i]->GetTotalPe() ; ip++) {
+	int digit_time = (*WCDCPMT)[i]->GetTime(ip);
+	if(digit_time >= WCSimWCTriggerBase::LongTime)
+	  continue;
+	
+	int digit_time_5ns = digit_time/window_step_size;
+	//only fill the non-corrected map once, the first time
+	if(j==0) {
+	  nhitsmap[int(floor(digit_time_5ns))]++;
+	}
+	//time is shifted by 400ns in order to ensure non-zero times (correcting for speed of light)
+	if(int(floor(digit_time_5ns-tofPMT/window_step_size+600./window_step_size)) < 0)
+	  continue;
+	nhitsVTXmap.at(j)[int(floor(digit_time_5ns-tofPMT/window_step_size + 600./window_step_size))]++;
+	//Also add a hit to the next bin
+	//nhitsVTXmap.at(j)[int(floor(digit_time_5ns-tofPMT/window_step_size + 600./window_step_size)) + 1]++;
+	
+      }    
     }
+  }
    
 
     //Now we want to use the tof corrected times to try to find other triggers
@@ -1007,12 +1020,15 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
     //0 to Longtime.  This is due to wanting to check the same time window for each test vertex
     
     int count = 0;
-    std::vector<std::pair<int,int> > PossibleTrigger;
-    std::vector<int> PossibleTriggerCount;
-    std::vector<std::pair<int, std::pair<int,int> > > Possibletrigger2;//vtxindex, time, count
-    Possibletrigger2.resize(int(floor(WCSimWCTriggerBase::LongTime/(window_step_size*2))));
+    //    std::vector<std::pair<int,int> > PossibleTrigger;
+    //std::vector<int> PossibleTriggerCount;
+    //std::vector<std::pair<int, std::pair<int,int> > > Possibletrigger2;//vtxindex, time, count
+    PossibleTrigger.clear();
+    PossibleTriggerCount.clear();
+    //Possibletrigger2.clear();
+    //Possibletrigger2.resize(int(floor(WCSimWCTriggerBase::LongTime/(window_step_size*2))));
     
-    
+   
     while(count<time_bins - 1) { //time_bins - 1 as we are checking the i-th
       //std::cout<<"count "<<count<<"\n";
       //and ith+1 bin at the same time.
@@ -1046,9 +1062,11 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
 
 //     //sort the possible triggers by time  
 //    std::sort(PossibleTrigger.begin(), PossibleTrigger.end(), sort_pair_second<int, int>());
-    std::vector<std::pair<int,int> > PossibleTrigger2;
-    std::vector<int> PossibleTriggerCount2;
-     int counter=0;
+    //std::vector<std::pair<int,int> > PossibleTrigger2;
+    PossibleTrigger2.clear();
+    //std::vector<int> PossibleTriggerCount2;
+    PossibleTriggerCount2.clear(); 
+    int counter=0;
      int index, time_lower, time_upper, numpmt;
      int index_prev=-1, time_lower_prev=-1, time_upper_prev=-1, numpmt_prev=-1;
      int max_pmt=-1,max_index=-1,max_time=-1;
@@ -1153,10 +1171,13 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
 //     }
 //     //   std::cout<<"more possible triggers\n";
 //     //loop over triggers from earliest to latest
-     std::vector<std::pair<int,int> > TriggerPairsCorT;
-     std::vector<std::pair<int,int> > TriggerNormT;
-     int time_start=-9999;
+     //std::vector<std::pair<int,int> > TriggerPairsCorT;
+     //std::vector<std::pair<int,int> > TriggerNormT;
+     TriggerPairsCorT.clear();
+     TriggerNormT.clear();
 
+     int time_start=-9999;
+     std::vector<Float_t> triggerinfo;
     for(int i=0;i<PossibleTrigger2.size();i++) {
       //once a trigger is found, we must jump to 950ns in the future before searching for the next
       if(PossibleTrigger2.at(i).second > time_start) {
@@ -1168,11 +1189,13 @@ void WCSimWCTriggerBase::AlgNHitsThenSubNHits(WCSimWCDigitsCollection* WCDCPMT, 
 	int triggertime = PossibleTrigger2.at(i).second; 
 	triggertime -= (int)triggertime % 5;
 	std::cout<<"TRIGGER "<<triggertime<<" "<<PossibleTriggerCount2.at(i)<<"\n";
-	std::vector<Float_t> triggerinfo;
+	//std::vector<Float_t> triggerinfo;
+	triggerinfo.clear();
 	triggerinfo.push_back(vtxVector.at((Float_t)PossibleTrigger2.at(i).first).x());
 	triggerinfo.push_back(vtxVector.at((Float_t)PossibleTrigger2.at(i).first).y());
 	triggerinfo.push_back(vtxVector.at((Float_t)PossibleTrigger2.at(i).first).z());
 	triggerinfo.push_back(PossibleTriggerCount2.at(i));
+	triggerinfo.push_back(PossibleTrigger2.at(i).second);
 	TriggerTypes.push_back(kTriggerSubNHits);
 	TriggerInfos.push_back(triggerinfo);
 	TriggerTimes.push_back(triggertime);

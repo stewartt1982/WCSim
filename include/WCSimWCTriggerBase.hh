@@ -135,6 +135,15 @@ protected:
   std::vector<int> nhitsmap;
   std::vector<G4ThreeVector> vtxVector;
   G4int windowVTX;
+  
+  std::vector<int> digit_times;
+  std::vector<std::pair<int,int> > PossibleTrigger;
+  std::vector<int> PossibleTriggerCount;
+  //std::vector<std::pair<int, std::pair<int,int> > > Possibletrigger2;//vtxindex, time, count
+  std::vector<std::pair<int,int> > PossibleTrigger2;
+  std::vector<int> PossibleTriggerCount2;
+  std::vector<std::pair<int,int> > TriggerPairsCorT;
+  std::vector<std::pair<int,int> > TriggerNormT;
 
 private:
   ///modify the NHits threshold based on the average dark noise rate

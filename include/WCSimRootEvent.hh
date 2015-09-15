@@ -129,17 +129,19 @@ private:
   // See jhfNtuple.h for the meaning of these data members:
   Float_t fQ;
   Float_t fT;
+  Float_t fGT;
   Int_t fTubeId;
   std::vector<int> fPhotonIds;
 
 public:
   WCSimRootCherenkovDigiHit() {}
-  WCSimRootCherenkovDigiHit(Float_t q, Float_t t, Int_t tubeid, std::vector<int> photon_ids);
+  WCSimRootCherenkovDigiHit(Float_t q, Float_t gt, Float_t t, Int_t tubeid, std::vector<int> photon_ids);
 
   virtual ~WCSimRootCherenkovDigiHit() { }
 
   Float_t     GetQ() const { return fQ;}
   Float_t     GetT() const { return fT;}
+  Float_t     GetGeantT() const { return fGT;}
   Int_t       GetTubeId() const { return fTubeId;}
   std::vector<int> GetPhotonIds() const { return fPhotonIds; }
 
@@ -310,6 +312,7 @@ public:
   TClonesArray        *GetCherenkovHitTimes() const {return fCherenkovHitTimes;}
 
   WCSimRootCherenkovDigiHit   *AddCherenkovDigiHit(Float_t q, 
+						   Float_t gt,
 						   Float_t t, 
 						   Int_t tubeid,
 						   std::vector<int> photon_ids);

@@ -217,6 +217,10 @@ void WCSimWCAddDarkNoise::AddDarkNoiseBeforeDigi(WCSimWCDigitsCollection* WCHCPM
 void WCSimWCAddDarkNoise::FindDarkNoiseRanges(WCSimWCDigitsCollection* WCHCPMT, float width) {
   //Loop over all Hits and assign a time window around each hit
   //store these in the ranges vector as pairs
+  if(WCHCPMT->entries() == 0) {//No pmts with hits
+    ranges.push_back(std::pair<float,float>(0,0));
+    return;
+  }
   for (int g=0; g<WCHCPMT->entries(); g++){
     for (int gp=0; gp<(*WCHCPMT)[g]->GetTotalPe(); gp++){
       float time = (*WCHCPMT)[g]->GetTime(gp);
@@ -241,6 +245,7 @@ void WCSimWCAddDarkNoise::FindDarkNoiseRanges(WCSimWCDigitsCollection* WCHCPMT, 
   std::vector<std::pair<float, float> >::iterator it = ranges.begin();
   std::pair<float, float> current = *(it)++;
   for( ; it != ranges.end(); it++) {
+    //  std::cout<<current.second<<" "<<it->first<<"\n";
     if (current.second >= it->first){
       current.second = std::max(current.second, it->second); 
     }
