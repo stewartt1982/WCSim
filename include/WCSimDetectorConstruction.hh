@@ -71,7 +71,9 @@ public:
   G4String GetDetectorName()      {return WCDetectorName;}
   G4double GetWaterTubeLength()   {return WCLength;}
   G4double GetWaterTubePosition() {return WCPosition;}
-  G4double GetWaterTubeRadius()   {return WCRadius;}  
+  G4double GetWaterTubeRadius()   {return WCRadius;}
+  G4double GetIDLength() {return WCIDHeight;}
+  G4double GetIDRadius()   {return WCIDDiameter/2.;}
   G4double GetPMTSize()           {return WCPMTRadius;}
   G4String GetPMTName()			  {return WCPMTName;}
   G4int    GetMyConfiguration()   {return myConfiguration;}

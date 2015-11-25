@@ -18,7 +18,7 @@
 // for memset
 #include <cstring>
 #include <iostream>
-
+#include <math.h>
 
 
 // *******************************************
@@ -413,27 +413,79 @@ void WCSimWCTriggerBase::AlgTestVertexTrigger(WCSimWCDigitsCollection* WCDCPMT, 
      myDetector->GetDetectorName() == "SuperK_20inchBandL_14perCent" ||
      myDetector->GetDetectorName() == "Cylinder_60x74_20inchBandL_14perCent()" ||
      myDetector->GetDetectorName() == "Cylinder_60x74_20inchBandL_40perCent()") {
-    height = myDetector->GetWaterTubeLength()/2.;
-    radius = myDetector->GetWaterTubeRadius();
+    //height = myDetector->GetWaterTubeLength()/2.;
+    //radius = myDetector->GetWaterTubeRadius();
+    height = myDetector->GetIDLength()/2.;
+    radius = myDetector->GetIDRadius();
   }
-  std::cout<<"HEIGHT "<<height*2.<<" Radius "<<radius<<"\n";
-  //  height = 60000./2.; //mm middle of tank == 0 so half the height                                                                       
-  //radius = 74000./2.; //mm 
-  //generate a box of verticies.  Save only those within the radius given.
-  //5m = 5000mm spacing
-  //
-  int n_vtx = 0;
-  for(int i=-1*height;i <= height;i=i+5000) {
-    for(int j=-1*radius;j<=radius;j=j+5000) {
-      for(int k=-1*radius;k<=radius;k=k+5000) {
-	if(sqrt(pow(j,2)+pow(k,2)) > radius)
-	  continue;
-	vtxVector.push_back(G4ThreeVector(j*1.,k*1.,i*1.));
-	n_vtx++;
+  
+  // //  height = 60000./2.; //mm middle of tank == 0 so half the height                                                                       
+//   //radius = 74000./2.; //mm 
+//   //generate a box of verticies.  Save only those within the radius given.
+//   //5m = 5000mm spacing
+//   //
+   int n_vtx = 0;
+//   for(int i=-1*height;i <= height;i=i+5000) {
+//     for(int j=-1*radius;j<=radius;j=j+5000) {
+//       for(int k=-1*radius;k<=radius;k=k+5000) {
+// 	if(sqrt(pow(j,2)+pow(k,2)) > radius)
+// 	  continue;
+// 	vtxVector.push_back(G4ThreeVector(j*1.,k*1.,i*1.));
+// 	n_vtx++;
+//       }
+//     }
+//   }
+  //Lets try to do this as radially with a layer of vertices at the PMTs
+   int start_height, end_height;
+   int n_height = floor(height*2./5000.);
+   int tempheight = n_height*5000.;
+   end_height = tempheight/2.;
+   start_height = -1*tempheight/2.;
+   int n_rad=floor(radius/5000.);
+   std::vector<int> radvec;
+   for(int i = 0;i<=n_rad;i++) {
+     radvec.push_back(i*5000);
+   }
+   if(n_rad*5000. < radius-1000.)
+     {
+       radvec.push_back(radius);
+       
+     }
+   for(int i=0;i<radvec.size();i++) {
+    
+    //determine the number of vertices for each radius
+    int nvtx_r;
+    float circ = CLHEP::twopi*i; 
+    float angle_seg;
+    int rad = radvec.at(i);
+    if(rad==0) {
+      //centre
+      nvtx_r = 1;
+    }
+    else {
+      //get the ceiling to ensure a max distance of 5000mm
+      nvtx_r = circ/5000.;
+    }
+    angle_seg = CLHEP::twopi/nvtx_r;
+    float angle = 0.;
+    float x,y;
+    for(int j=0;j<nvtx_r;j++){
+      angle = angle + j*angle_seg;
+      x=cos(angle)*rad;
+      y=sin(angle)*rad;
+      for(int k=start_height;k <= end_height;k=k+5000){
+	vtxVector.push_back(G4ThreeVector(x*1.,y*1.,k*1.));
+	n_vtx++; 
+	
       }
+      //add heights at top and bottom of tank
+      vtxVector.push_back(G4ThreeVector(x*1.,y*1.,height));
+      n_vtx++;
+      vtxVector.push_back(G4ThreeVector(x*1.,y*1.,-1.*height));
+      n_vtx++;
     }
   }
- 
+  
 
    nhitsVTXmap.resize(n_vtx);
    for(int i = 0;i<n_vtx;i++) 
@@ -464,11 +516,11 @@ void WCSimWCTriggerBase::AlgTestVertexTrigger(WCSimWCDigitsCollection* WCDCPMT, 
     tube=(*WCDCPMT)[i]->GetTubeID();
     //get PMT position
     pmtinfo = (WCSimPmtInfo*)pmts->at( tube - 1 );
-    //hit positions in cm, conveet to mm as the CLHEP untis are in mm and ns
+    //hit positions in cm, convert to mm as the CLHEP untis are in mm and ns
     hit_pos[0] = 10.*pmtinfo->Get_transx();
     hit_pos[1] = 10.*pmtinfo->Get_transy();
     hit_pos[2] = 10.*pmtinfo->Get_transz();
-    
+
     //loop over vertices, calculate distance from vertex to PMT.
     for(int j=0;j<vtxVector.size();j++) {
       diff_x = hit_pos[0]-vtxVector.at(j).x();                                                                                                                  
