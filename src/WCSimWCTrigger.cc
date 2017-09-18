@@ -107,6 +107,8 @@ int WCSimWCTriggerBase::GetPreTriggerWindow(TriggerType_t t)
   case kTriggerFailure:
     return saveFailuresPreTriggerWindow;
     break;
+  case kTriggerNoTrig:
+    return -WCSimWCTriggerBase::LongTime;
   default:
     G4cerr << "WCSimWCTriggerBase::GetPreTriggerWindow() Unknown trigger type " << t
 	   << "\t" << WCSimEnumerations::EnumAsString(t) << G4endl;
